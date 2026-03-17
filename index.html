@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEASONIX — Seasonal Trading Analysis</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap');
+:root{--bg:#06080c;--surface:#0c1117;--surface2:#101820;--border:#192330;--accent:#00d4ff;--accent2:#ff6b35;--accent3:#39ff14;--gold:#ffd166;--text:#bdd5e4;--dim:#3d5566;--up:#39ff14;--down:#ff3b6b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(ellipse 80% 40% at 10% 0%,rgba(0,212,255,.06) 0,transparent 50%),radial-gradient(ellipse 60% 60% at 90% 100%,rgba(255,107,53,.05) 0,transparent 50%)}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(0,212,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.018) 1px,transparent 1px);background-size:48px 48px}
+header{position:relative;z-index:20;display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid var(--border)}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.2rem;color:var(--accent);letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-tag{font-size:.6rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.sbadge{font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border:1px solid var(--border);color:var(--dim);border-radius:2px}
+.sbadge.live{border-color:var(--up);color:var(--up)}.sbadge.err{border-color:var(--down);color:var(--down)}
+main{position:relative;z-index:10;max-width:1500px;margin:0 auto;padding:24px 28px 48px}
+.search-bar{display:flex;gap:10px;align-items:center;margin-bottom:28px;flex-wrap:wrap}
+#ticker{background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:1rem;font-weight:500;padding:12px 14px;outline:none;text-transform:uppercase;letter-spacing:.08em;transition:border-color .2s;width:180px;border-radius:2px}
+#ticker:focus{border-color:var(--accent)}
+.btn{background:var(--accent);color:var(--bg);border:none;font-family:'Syne',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;padding:0 22px;height:46px;cursor:pointer;transition:background .15s;border-radius:2px}
+.btn:hover{background:#2de0ff}.btn:disabled{opacity:.4;cursor:not-allowed}
+.quick{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ql{font-size:.58rem;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+.qtick{background:transparent;border:1px solid var(--border);color:var(--dim);font-family:'DM Mono',monospace;font-size:.68rem;padding:5px 10px;cursor:pointer;transition:all .15s;border-radius:2px}
+.qtick:hover{border-color:var(--accent);color:var(--accent)}
+#loading{display:none;align-items:center;gap:12px;padding:16px 0;color:var(--dim);font-size:.78rem}
+.spin{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden;width:220px;margin-top:6px}
+.progress-fill{height:100%;background:var(--accent);width:0%;transition:width .3s;border-radius:2px}
+#errmsg{display:none;color:var(--down);background:rgba(255,59,107,.07);border:1px solid rgba(255,59,107,.25);padding:14px 18px;font-size:.75rem;margin-bottom:18px;line-height:1.8;border-radius:2px}
+#infobar{display:none;background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);padding:14px 22px;margin-bottom:22px;gap:36px;align-items:center;flex-wrap:wrap}
+.ib{display:flex;flex-direction:column;gap:2px}
+.ib-l{font-size:.58rem;color:var(--dim);letter-spacing:.12em;text-transform:uppercase}
+.ib-v{font-size:1rem;font-weight:500}.ib-v.big{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800}
+.up{color:var(--up)}.down{color:var(--down)}
+.sec{font-family:'Syne',sans-serif;font-size:.65rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:28px 0 14px;display:flex;align-items:center;gap:10px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:6px}
+.mc{background:var(--surface);border:1px solid var(--border);padding:14px 12px;position:relative;overflow:hidden;border-radius:2px}
+.mc-l{font-size:.56rem;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.mc-v{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;line-height:1}
+.mc-s{font-size:.6rem;color:var(--dim);margin-top:4px}
+.mc-glow{position:absolute;bottom:-12px;right:-12px;width:55px;height:55px;border-radius:50%;opacity:.12;filter:blur(18px)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.grid1{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);padding:18px;position:relative;overflow:hidden;border-radius:2px}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent)}
+.card.c2::before{background:linear-gradient(90deg,var(--accent2),transparent)}
+.card.c3::before{background:linear-gradient(90deg,var(--accent3),transparent)}
+.card.cg::before{background:linear-gradient(90deg,var(--gold),transparent)}
+.card-t{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+.card-s{font-size:.62rem;color:var(--dim);margin-bottom:14px}
+.chart-wrap{position:relative;height:210px}.chart-wrap.tall{height:250px}
+#heatmap{overflow-x:auto;padding-top:4px}
+.hm-grid{display:grid;gap:3px}.hm-h{font-size:.58rem;color:var(--dim);text-align:center;padding:3px 1px}
+.hm-y{font-size:.62rem;color:var(--dim);display:flex;align-items:center;padding:3px 6px}
+.hm-c{padding:5px 2px;text-align:center;border-radius:2px;font-size:.6rem;font-weight:500;cursor:default;transition:transform .1s;white-space:nowrap}
+.hm-c:hover{transform:scale(1.15);z-index:5;position:relative}
+.tbl-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:6px}
+.tbl-card{background:var(--surface);border:1px solid var(--border);padding:18px;border-radius:2px}
+.stbl{width:100%;border-collapse:collapse;font-size:.7rem}
+.stbl th{font-size:.57rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:left;padding:0 0 9px;border-bottom:1px solid var(--border)}
+.stbl th:not(:first-child){text-align:right}
+.stbl td{padding:7px 0;border-bottom:1px solid rgba(25,35,48,.6)}
+.stbl td:not(:first-child){text-align:right}.stbl tr:last-child td{border-bottom:none}
+.uv{color:var(--up)}.dv{color:var(--down)}.nv{color:var(--gold)}
+.cal-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:10px}
+.cal-m{background:var(--surface2);border:1px solid var(--border);padding:11px 8px;text-align:center;border-radius:2px}
+.cal-mn{font-family:'Syne',sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
+.cal-em{font-size:1.3rem;margin-bottom:3px}.cal-r{font-size:.68rem;font-weight:500}.cal-w{font-size:.58rem;color:var(--dim);margin-top:2px}
+.anom-item{display:flex;gap:10px;align-items:flex-start;margin-bottom:13px}
+.anom-i{font-size:1rem;flex-shrink:0}.anom-n{font-size:.72rem;font-weight:500;color:var(--text);margin-bottom:2px}
+.anom-d{font-size:.62rem;color:var(--dim);line-height:1.5}
+footer{position:relative;z-index:10;border-top:1px solid var(--border);padding:16px 28px;display:flex;justify-content:space-between;font-size:.6rem;color:var(--dim);gap:20px;flex-wrap:wrap}
+#dashboard{display:none}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}.tbl-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(3,1fr)}.cal-grid{grid-template-columns:repeat(4,1fr)}main{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-dot"></div>SEASONIX</div>
+  <div class="hdr-tag">Seasonal Trading Analysis</div>
+  <span id="sbadge" class="sbadge">READY</span>
+</header>
+<main>
+  <div class="search-bar">
+    <input id="ticker" type="text" placeholder="AAPL" autocomplete="off"/>
+    <button class="btn" id="abtn" onclick="analyze()">ANALYZE</button>
+    <div class="quick">
+      <span class="ql">Quick:</span>
+      <button class="qtick" onclick="setTicker('AAPL')">AAPL</button>
+      <button class="qtick" onclick="setTicker('TSLA')">TSLA</button>
+      <button class="qtick" onclick="setTicker('SPY')">SPY</button>
+      <button class="qtick" onclick="setTicker('NVDA')">NVDA</button>
+      <button class="qtick" onclick="setTicker('MSFT')">MSFT</button>
+      <button class="qtick" onclick="setTicker('AMZN')">AMZN</button>
+      <button class="qtick" onclick="setTicker('GLD')">GLD</button>
+      <button class="qtick" onclick="setTicker('META')">META</button>
+    </div>
+  </div>
+  <div id="loading">
+    <div class="spin"></div>
+    <div style="flex:1">
+      <div id="lmsg">Fetching data…</div>
+      <div class="progress-bar"><div class="progress-fill" id="prog"></div></div>
+    </div>
+  </div>
+  <div id="errmsg"></div>
+  <div id="infobar"></div>
+  <div id="dashboard">
+    <div class="sec">Performance Overview</div>
+    <div class="metrics" id="metrics"></div>
+    <div class="sec">Monthly &amp; Quarterly Patterns</div>
+    <div class="grid2">
+      <div class="card"><div class="card-t">Avg Monthly Return</div><div class="card-s">Mean % return per calendar month across all years</div><div class="chart-wrap"><canvas id="cMonthly"></canvas></div></div>
+      <div class="card c2"><div class="card-t">Monthly Win Rate</div><div class="card-s">% of years the month closed positive</div><div class="chart-wrap"><canvas id="cWin"></canvas></div></div>
+      <div class="card c3"><div class="card-t">Quarterly Performance</div><div class="card-s">Avg compounded return by quarter Q1–Q4</div><div class="chart-wrap"><canvas id="cQuarter"></canvas></div></div>
+      <div class="card cg"><div class="card-t">Return Range by Month</div><div class="card-s">Best / Avg / Worst per month</div><div class="chart-wrap"><canvas id="cRange"></canvas></div></div>
+    </div>
+    <div class="sec">Year-Over-Year Comparison</div>
+    <div class="grid1"><div class="card"><div class="card-t">Annual Returns</div><div class="card-s">Year-by-year total return with trend line</div><div class="chart-wrap tall"><canvas id="cYoy"></canvas></div></div></div>
+    <div class="grid1"><div class="card"><div class="card-t">Monthly Return Heatmap</div><div class="card-s">Every month by year — green positive, red negative</div><div id="heatmap"></div></div></div>
+    <div class="sec">Statistical Summary</div>
+    <div class="tbl-grid">
+      <div class="tbl-card"><div class="card-t" style="margin-bottom:12px">Monthly Stats</div><table class="stbl"><thead><tr><th>Month</th><th>Avg%</th><th>Win%</th><th>Best</th><th>Worst</th></tr></thead><tbody id="tMonthly"></tbody></table></div>
+      <div class="tbl-card"><div class="card-t" style="margin-bottom:12px">Quarterly Stats</div><table class="stbl"><thead><tr><th>Qtr</th><th>Avg%</th><th>Win%</th><th>Best</th><th>Worst</th></tr></thead><tbody id="tQuarterly"></tbody></table></div>
+      <div class="tbl-card"><div class="card-t" style="margin-bottom:12px">Annual Stats</div><table class="stbl"><thead><tr><th>Year</th><th>Return%</th><th>Best Mo</th><th>Worst Mo</th></tr></thead><tbody id="tAnnual"></tbody></table></div>
+    </div>
+    <div class="sec">Holiday &amp; Seasonal Effects</div>
+    <div class="grid2">
+      <div class="card"><div class="card-t">Holiday Window Returns</div><div class="card-s">Avg return in month surrounding key holidays</div><div class="chart-wrap"><canvas id="cHoliday"></canvas></div></div>
+      <div class="card c2"><div class="card-t">Seasonal Anomalies Detected</div><div class="card-s">Known effects identified in this asset's history</div><div id="anomalies" style="padding-top:6px"></div></div>
+    </div>
+    <div class="sec">Trading Signal Calendar</div>
+    <div class="card" style="margin-bottom:0">
+      <div class="card-s" style="margin-bottom:14px">Based on historical seasonality &nbsp;·&nbsp; 🟢 Strong Buy &nbsp;·&nbsp; 🟡 Neutral &nbsp;·&nbsp; 🔴 Weak/Avoid</div>
+      <div class="cal-grid" id="sigcal"></div>
+    </div>
+  </div>
+</main>
+<footer>
+  <span>⚠ Informational only. Not financial advice. Past patterns do not guarantee future results.</span>
+  <span>Data: Finnhub.io</span>
+</footer>
+<script>
+const API_KEY='d6spbupr01qoqoiqv3fgd6spbupr01qoqoiqv3g0';
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const QS=['Q1','Q2','Q3','Q4'];
+let charts={};
+
+function setTicker(t){document.getElementById('ticker').value=t;analyze();}
+document.getElementById('ticker').addEventListener('keydown',e=>{if(e.key==='Enter')analyze();});
+function setProgress(p){document.getElementById('prog').style.width=p+'%';}
+function setMsg(t){document.getElementById('lmsg').textContent=t;}
+function setBadge(t,c){const b=document.getElementById('sbadge');b.textContent=t;b.className='sbadge'+(c?' '+c:'');}
+
+async function fetchWithRetry(url,retries=2){
+  for(let i=0;i<=retries;i++){
+    try{const r=await fetch(url);if(!r.ok){const t=await r.text();throw new Error('HTTP '+r.status+': '+t.slice(0,150));}return await r.json();}
+    catch(e){if(i===retries)throw e;await new Promise(r=>setTimeout(r,400*(i+1)));}
+  }
+}
+
+async function fetchAllDaily(symbol){
+  const now=Math.floor(Date.now()/1000),yr=365*24*3600,all={};
+  let fetched=false;
+  for(let i=0;i<10;i++){
+    const to=now-i*yr,from=to-yr;
+    setMsg('Fetching year '+(i+1)+'/10…');setProgress(10+i*8);
+    try{
+      const d=await fetchWithRetry('https://finnhub.io/api/v1/stock/candle?symbol='+encodeURIComponent(symbol)+'&resolution=D&from='+from+'&to='+to+'&token='+API_KEY);
+      if(d.s==='ok'&&d.t?.length){d.t.forEach((ts,idx)=>{all[ts]=d.c[idx];});fetched=true;}
+      else if(d.s==='no_data'&&i===0)throw new Error('No data for "'+symbol+'". Valid US ticker?');
+    }catch(e){if(!fetched&&i===0)throw e;break;}
+    await new Promise(r=>setTimeout(r,120));
+  }
+  if(!fetched)throw new Error('No data retrieved for "'+symbol+'"');
+  const sorted=Object.entries(all).sort(([a],[b])=>+a-+b);
+  return{t:sorted.map(([ts])=>+ts),c:sorted.map(([,c])=>c)};
+}
+
+function buildMatrix(ts,closes){
+  const g={};
+  ts.forEach((t,i)=>{const d=new Date(t*1000),k=d.getFullYear()+'-'+d.getMonth();if(!g[k])g[k]={year:d.getFullYear(),month:d.getMonth(),first:closes[i],last:closes[i]};else g[k].last=closes[i];});
+  const mx={};
+  Object.values(g).forEach(({year,month,first,last})=>{if(!mx[year])mx[year]={};mx[year][month]=+((last-first)/first*100).toFixed(3);});
+  return mx;
+}
+function mStats(mx){return Array.from({length:12},(_,m)=>{const r=Object.values(mx).map(y=>y[m]).filter(v=>v!=null);if(!r.length)return{avg:0,win:0,best:0,worst:0};return{avg:r.reduce((a,b)=>a+b,0)/r.length,win:r.filter(x=>x>0).length/r.length*100,best:Math.max(...r),worst:Math.min(...r)};});}
+function qStats(mx){return[0,1,2,3].map(q=>{const r=[];Object.values(mx).forEach(y=>{const s=[q*3,q*3+1,q*3+2].map(m=>y[m]).filter(v=>v!=null);if(s.length===3)r.push((s.reduce((a,x)=>a*(1+x/100),1)-1)*100);});if(!r.length)return{avg:0,win:0,best:0,worst:0};return{avg:r.reduce((a,b)=>a+b,0)/r.length,win:r.filter(x=>x>0).length/r.length*100,best:Math.max(...r),worst:Math.min(...r)};});}
+function aStats(mx){return Object.entries(mx).sort(([a],[b])=>+a-+b).map(([year,mos])=>{const r=Object.values(mos),total=(r.reduce((a,x)=>a*(1+x/100),1)-1)*100,bm=Object.entries(mos).sort(([,a],[,b])=>b-a)[0],wm=Object.entries(mos).sort(([,a],[,b])=>a-b)[0];return{year:+year,total,bestM:MONTHS[+bm?.[0]??0],worstM:MONTHS[+wm?.[0]??0]};});}
+
+async function analyze(){
+  const sym=document.getElementById('ticker').value.trim().toUpperCase();
+  if(!sym)return;
+  const btn=document.getElementById('abtn');btn.disabled=true;
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('infobar').style.display='none';
+  document.getElementById('errmsg').style.display='none';
+  document.getElementById('loading').style.display='flex';
+  setProgress(5);setMsg('Connecting to Finnhub for '+sym+'…');setBadge('LOADING','');
+  Object.values(charts).forEach(c=>c&&c.destroy());charts={};
+  try{
+    const[daily,quote,profile]=await Promise.all([
+      fetchAllDaily(sym),
+      fetchWithRetry('https://finnhub.io/api/v1/quote?symbol='+encodeURIComponent(sym)+'&token='+API_KEY).catch(()=>null),
+      fetchWithRetry('https://finnhub.io/api/v1/stock/profile2?symbol='+encodeURIComponent(sym)+'&token='+API_KEY).catch(()=>null)
+    ]);
+    setMsg('Building seasonal patterns…');setProgress(95);
+    const mx=buildMatrix(daily.t,daily.c);
+    const ms=mStats(mx),qs=qStats(mx),as=aStats(mx),years=Object.keys(mx).sort();
+    renderInfoBar(sym,quote,profile,daily.c,years.length);
+    renderMetrics(ms,qs,as);
+    renderMonthly(ms);renderWinRate(ms);renderQuarterly(qs);renderRange(ms);
+    renderYoy(as);renderHeatmap(mx,years);
+    renderTblMonthly(ms);renderTblQuarterly(qs);renderTblAnnual(as);
+    renderHoliday(ms);renderAnomalies(ms,qs,as);renderCalendar(ms);
+    document.getElementById('dashboard').style.display='block';setBadge('LIVE','live');
+  }catch(e){
+    const el=document.getElementById('errmsg');el.style.display='block';
+    el.innerHTML='⚠ '+e.message;setBadge('ERROR','err');
+  }
+  document.getElementById('loading').style.display='none';btn.disabled=false;
+}
+
+function renderInfoBar(sym,quote,profile,closes,yrs){
+  const price=quote?.c??closes[closes.length-1],prev=quote?.pc??closes[closes.length-2];
+  const chg=price-prev,pct=(chg/prev)*100,up=chg>=0;
+  document.getElementById('infobar').innerHTML=`
+    <div class="ib"><div class="ib-l">Symbol</div><div class="ib-v big">${sym}</div></div>
+    <div class="ib"><div class="ib-l">Company</div><div class="ib-v" style="font-size:.82rem">${profile?.name||sym}</div></div>
+    <div class="ib"><div class="ib-l">Price</div><div class="ib-v big ${up?'up':'down'}">${price?.toFixed(2)}</div></div>
+    <div class="ib"><div class="ib-l">Day Change</div><div class="ib-v ${up?'up':'down'}">${up?'+':''}${chg?.toFixed(2)} (${up?'+':''}${pct?.toFixed(2)}%)</div></div>
+    <div class="ib"><div class="ib-l">Industry</div><div class="ib-v" style="font-size:.78rem">${profile?.finnhubIndustry||'—'}</div></div>
+    <div class="ib"><div class="ib-l">Years of Data</div><div class="ib-v">${yrs} yrs</div></div>`;
+  document.getElementById('infobar').style.display='flex';
+}
+function renderMetrics(ms,qs,as){
+  const bm=ms.reduce((b,s,i)=>s.avg>ms[b].avg?i:b,0),wm=ms.reduce((b,s,i)=>s.avg<ms[b].avg?i:b,0),bq=qs.reduce((b,s,i)=>s.avg>qs[b].avg?i:b,0);
+  const avgA=as.reduce((s,y)=>s+y.total,0)/as.length,posY=as.filter(y=>y.total>0).length,bestA=Math.max(...as.map(y=>y.total));
+  document.getElementById('metrics').innerHTML=[
+    {l:'Best Month',v:MONTHS[bm],s:'avg +'+(ms[bm].avg.toFixed(2))+'%',c:'var(--up)'},
+    {l:'Worst Month',v:MONTHS[wm],s:'avg '+(ms[wm].avg.toFixed(2))+'%',c:'var(--down)'},
+    {l:'Best Quarter',v:QS[bq],s:'avg +'+(qs[bq].avg.toFixed(2))+'%',c:'var(--accent)'},
+    {l:'Avg Annual',v:(avgA>=0?'+':'')+avgA.toFixed(1)+'%',s:as.length+' yr avg',c:avgA>=0?'var(--up)':'var(--down)'},
+    {l:'Positive Years',v:posY+'/'+as.length,s:(posY/as.length*100).toFixed(0)+'% win rate',c:'var(--accent2)'},
+    {l:'Best Year',v:'+'+bestA.toFixed(1)+'%',s:''+as.find(y=>y.total===bestA)?.year,c:'var(--up)'},
+  ].map(m=>`<div class="mc"><div class="mc-l">${m.l}</div><div class="mc-v" style="color:${m.c};font-size:${m.v.length>6?'1rem':'1.25rem'}">${m.v}</div><div class="mc-s">${m.s}</div><div class="mc-glow" style="background:${m.c}"></div></div>`).join('');
+}
+const TT={backgroundColor:'#0c1117',borderColor:'#192330',borderWidth:1,titleColor:'#bdd5e4',bodyColor:'#bdd5e4',padding:10,titleFont:{family:'DM Mono',size:11},bodyFont:{family:'DM Mono',size:11}};
+const AX={grid:{color:'rgba(25,35,48,.7)'},ticks:{color:'#3d5566',font:{family:'DM Mono',size:10}}};
+const BASE={plugins:{legend:{display:false},tooltip:TT},scales:{x:AX,y:AX},animation:{duration:500},responsive:true,maintainAspectRatio:false};
+function col(v,a=.85){if(v>2)return'rgba(57,255,20,'+a+')';if(v>0)return'rgba(57,255,20,'+(a*.45)+')';if(v>-2)return'rgba(255,59,107,'+(a*.45)+')';return'rgba(255,59,107,'+a+')';}
+function pct(v){return'<span class="'+(v>0?'uv':v<0?'dv':'')+'">'+(v>0?'+':'')+v.toFixed(2)+'%</span>';}
+function sig(avg,win){if(avg>1.5&&win>60)return{e:'🟢',cls:'uv'};if(avg<-1.5||win<35)return{e:'🔴',cls:'dv'};return{e:'🟡',cls:'nv'};}
+function renderMonthly(ms){const avgs=ms.map(s=>+s.avg.toFixed(2));charts.m=new Chart(document.getElementById('cMonthly'),{type:'bar',data:{labels:MONTHS,datasets:[{data:avgs,backgroundColor:avgs.map(v=>col(v)),borderWidth:0,borderRadius:2}]},options:{...BASE,scales:{...BASE.scales,y:{...AX,ticks:{...AX.ticks,callback:v=>v+'%'}}}}});}
+function renderWinRate(ms){const ws=ms.map(s=>+s.win.toFixed(1));charts.w=new Chart(document.getElementById('cWin'),{type:'bar',data:{labels:MONTHS,datasets:[{data:ws,backgroundColor:ws.map(v=>v>60?'rgba(255,107,53,.85)':v>40?'rgba(255,209,102,.65)':'rgba(61,85,102,.6)'),borderWidth:0,borderRadius:2}]},options:{...BASE,scales:{...BASE.scales,y:{...AX,min:0,max:100,ticks:{...AX.ticks,callback:v=>v+'%'}}}}});}
+function renderQuarterly(qs){const avgs=qs.map(s=>+s.avg.toFixed(2));charts.q=new Chart(document.getElementById('cQuarter'),{type:'bar',data:{labels:QS,datasets:[{data:avgs,backgroundColor:avgs.map(v=>col(v)),borderWidth:0,borderRadius:3}]},options:{...BASE,scales:{...BASE.scales,y:{...AX,ticks:{...AX.ticks,callback:v=>v+'%'}}}}});}
+function renderRange(ms){charts.r=new Chart(document.getElementById('cRange'),{type:'bar',data:{labels:MONTHS,datasets:[{label:'Best',data:ms.map(s=>+s.best.toFixed(2)),backgroundColor:'rgba(57,255,20,.18)',borderWidth:0,borderRadius:2},{label:'Avg',data:ms.map(s=>+s.avg.toFixed(2)),backgroundColor:ms.map(s=>col(s.avg)),borderWidth:0,borderRadius:2},{label:'Worst',data:ms.map(s=>+s.worst.toFixed(2)),backgroundColor:'rgba(255,59,107,.18)',borderWidth:0,borderRadius:2}]},options:{...BASE,plugins:{...BASE.plugins,legend:{display:true,labels:{color:'#3d5566',font:{family:'DM Mono',size:10},boxWidth:10}}},scales:{...BASE.scales,y:{...AX,ticks:{...AX.ticks,callback:v=>v+'%'}}}}});}
+function renderYoy(as){const rets=as.map(y=>+y.total.toFixed(2));charts.y=new Chart(document.getElementById('cYoy'),{type:'bar',data:{labels:as.map(y=>y.year+''),datasets:[{type:'bar',label:'Return',data:rets,backgroundColor:rets.map(v=>col(v,.7)),borderWidth:0,borderRadius:2},{type:'line',label:'Trend',data:rets,borderColor:'rgba(0,212,255,.55)',borderWidth:2,pointRadius:0,tension:.4,fill:false}]},options:{...BASE,plugins:{...BASE.plugins,legend:{display:true,labels:{color:'#3d5566',font:{family:'DM Mono',size:10},boxWidth:10}}},scales:{...BASE.scales,y:{...AX,ticks:{...AX.ticks,callback:v=>v+'%'}}}}});}
+function renderHeatmap(mx,years){
+  let html='<div class="hm-grid" style="grid-template-columns:55px repeat(12,1fr)"><div></div>';
+  MONTHS.forEach(m=>html+=`<div class="hm-h">${m}</div>`);
+  years.forEach(y=>{
+    html+=`<div class="hm-y">${y}</div>`;
+    for(let m=0;m<12;m++){const v=mx[y]?.[m];if(v==null){html+=`<div class="hm-c" style="background:rgba(25,35,48,.3);color:var(--dim)">—</div>`;continue;}const inten=Math.min(Math.abs(v)/7,1),r=v>=0?0:Math.round(220*inten+35),g=v>=0?Math.round(190*inten+55):Math.round(40*inten),b=Math.round(40*inten),alpha=.2+inten*.72,tc=inten>.45?'#06080c':(v>=0?'#39ff14':'#ff3b6b');html+=`<div class="hm-c" style="background:rgba(${r},${g},${b},${alpha});color:${tc}">${v>=0?'+':''}${v.toFixed(1)}</div>`;}
+  });
+  html+='</div>';document.getElementById('heatmap').innerHTML=html;
+}
+function renderTblMonthly(ms){document.getElementById('tMonthly').innerHTML=ms.map((r,i)=>`<tr><td>${MONTHS[i]}</td><td>${pct(r.avg)}</td><td><span class="${r.win>60?'uv':r.win<40?'dv':''}">${r.win.toFixed(0)}%</span></td><td class="uv">+${r.best.toFixed(1)}%</td><td class="dv">${r.worst.toFixed(1)}%</td></tr>`).join('');}
+function renderTblQuarterly(qs){document.getElementById('tQuarterly').innerHTML=qs.map((r,i)=>`<tr><td>${QS[i]}</td><td>${pct(r.avg)}</td><td><span class="${r.win>60?'uv':r.win<40?'dv':''}">${r.win.toFixed(0)}%</span></td><td class="uv">+${r.best.toFixed(1)}%</td><td class="dv">${r.worst.toFixed(1)}%</td></tr>`).join('');}
+function renderTblAnnual(as){document.getElementById('tAnnual').innerHTML=as.slice(-10).reverse().map(r=>`<tr><td>${r.year}</td><td>${pct(r.total)}</td><td class="uv">${r.bestM}</td><td class="dv">${r.worstM}</td></tr>`).join('');}
+const HOLS=[{n:'New Year',m:0},{n:"Valentine's",m:1},{n:'Easter',m:2},{n:'Memorial',m:4},{n:'July 4th',m:6},{n:'Labor Day',m:8},{n:'Thanksgiving',m:10},{n:'Christmas',m:11}];
+function renderHoliday(ms){const avgs=HOLS.map(h=>+ms[h.m].avg.toFixed(2));charts.h=new Chart(document.getElementById('cHoliday'),{type:'bar',data:{labels:HOLS.map(h=>h.n),datasets:[{data:avgs,backgroundColor:avgs.map(v=>col(v,.8)),borderWidth:0,borderRadius:3}]},options:{...BASE,indexAxis:'y',scales:{x:{...AX,ticks:{...AX.ticks,callback:v=>v+'%'}},y:{...AX}}}});}
+function renderAnomalies(ms,qs,as){
+  const list=[];
+  if(ms[0].avg>1.5)list.push({i:'📈',n:'January Effect',d:'Jan avg +'+(ms[0].avg.toFixed(1))+'%'});
+  const sumAvg=[4,5,6,7,8].reduce((s,i)=>s+ms[i].avg,0)/5;
+  if(sumAvg<0.3)list.push({i:'☀️',n:'"Sell in May" Detected',d:'May–Sep avg '+sumAvg.toFixed(2)+'%'});
+  if(ms[11].avg>1)list.push({i:'🎅',n:'Santa Rally',d:'Dec avg +'+ms[11].avg.toFixed(1)+'%'});
+  const wAvg=[9,10,11,0,1,2,3].reduce((s,i)=>s+ms[i].avg,0)/7;
+  if(wAvg>sumAvg+1)list.push({i:'🎃',n:'Halloween Indicator',d:'Oct–Apr '+wAvg.toFixed(1)+'% vs May–Sep '+sumAvg.toFixed(1)+'%'});
+  if(qs[3].avg>2)list.push({i:'🍂',n:'Q4 Strength',d:'Q4 avg +'+qs[3].avg.toFixed(1)+'%'});
+  if(Math.min(...as.map(y=>y.total))<-30)list.push({i:'💥',n:'High Drawdown Risk',d:'Worst year: '+Math.min(...as.map(y=>y.total)).toFixed(1)+'%'});
+  if(!list.length)list.push({i:'✅',n:'No Dominant Anomalies',d:'No strong seasonal patterns detected'});
+  document.getElementById('anomalies').innerHTML=list.map(a=>`<div class="anom-item"><span class="anom-i">${a.i}</span><div><div class="anom-n">${a.n}</div><div class="anom-d">${a.d}</div></div></div>`).join('');
+}
+function renderCalendar(ms){document.getElementById('sigcal').innerHTML=ms.map((r,i)=>{const sg=sig(r.avg,r.win);return`<div class="cal-m"><div class="cal-mn">${MONTHS[i]}</div><div class="cal-em">${sg.e}</div><div class="cal-r ${sg.cls}">${r.avg>0?'+':''}${r.avg.toFixed(1)}%</div><div class="cal-w">${r.win.toFixed(0)}% wins</div></div>`;}).join('');}
+window.addEventListener('load',()=>{document.getElementById('ticker').value='AAPL';analyze();});
+</script>
+</body>
+</html>
